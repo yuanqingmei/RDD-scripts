@@ -1,6 +1,6 @@
 #author:myq
 #this script will be committed to github,20190811
-#
+#work for RDD
 import os
 
 #workingDirectory = "D:\\exercise\\python\\(ok)1. Aarti IJSAEM 2017\\(final)data"
@@ -14,6 +14,7 @@ print(workingDirectory)
 
 root = os.getcwd()
 print(root)
+
 
 def file_name(file_dir):
 #    line = 0
@@ -38,3 +39,7 @@ def file_name(file_dir):
 
 #file_name(root)
 file_name(workingDirectory)
+
+if __name__ == '__main__':
+    file_name(workingDirectory)
+    pass
