@@ -21,12 +21,8 @@ def statistical(wd="E:\\RD\\terapromise\\",
                 tlist="List.txt"):
     import os
     import csv
-    import numpy as np
-    from sklearn.model_selection import StratifiedKFold
     import pandas as pd
-    import statsmodels.api as sm
-    from sklearn.metrics import roc_curve, auc
-    from sklearn.metrics import confusion_matrix
+    import matplotlib.pyplot as plt
 
     workingDirectory = wd
     resultDirectory = rd
@@ -35,10 +31,23 @@ def statistical(wd="E:\\RD\\terapromise\\",
     os.chdir(workingDirectory)
     print(os.getcwd())
 
+    # 新建一个以outcomeFile命名的文件夹，用于存入该文件名下，若干度量的性能和阈值箱线图
+    try:
+        os.mkdir(workingDirectory + "metricBoxplot")
+    except Exception as err:
+        print(err)
+
     with open(workingDirectory + tlist) as l:
         lines = l.readlines()
 
     alldf = pd.DataFrame()
+
+    # bug为0的度量
+    zerobugdf = pd.DataFrame()
+    # bug大于零的度量
+    onebugdf = pd.DataFrame()
+    # bug大于3的度量
+    threebugdf = pd.DataFrame()
 
     for line in lines:
         file = line.replace("\n", "")
@@ -56,13 +65,34 @@ def statistical(wd="E:\\RD\\terapromise\\",
             df = pd.read_csv(file)
             alldf = pd.concat([alldf, df])
 
+    zerobugdf = alldf[alldf["bug"] == 0]
+    onebugdf = alldf[alldf["bug"] > 0]
+    threebugdf = alldf[alldf["bug"] >2]
 
-    with open(resultDirectory + "trainigDataStatistical.csv", 'a+', encoding="utf-8", newline='') as f2:
+    with open(resultDirectory + "trainigDataStatistical.csv", 'a+', encoding="utf-8", newline='') as f2,\
+         open(resultDirectory + "zerobugStatistical.csv", 'a+', encoding="utf-8", newline='') as f0bug,\
+         open(resultDirectory + "onebugStatistical.csv", 'a+', encoding="utf-8", newline='') as f1bug,\
+         open(resultDirectory + "threebugDataStatistical.csv", 'a+', encoding="utf-8", newline='') as f3bug:
         writer = csv.writer(f2)
+        zerobugwriter = csv.writer(f0bug)
+        onebugwriter = csv.writer(f1bug)
+        threebugwriter = csv.writer(f3bug)
         # 先写入columns_name
         if os.path.getsize(resultDirectory + "trainigDataStatistical.csv") == 0:
-            writer.writerow(["metric", "number", "number>0", "min", "median", "max", "mean", "std.Dev",
-                             "skewness", "kurtosis"])
+            writer.writerow(["metric", "number", "number>0", "min", "1st quartile", "median", "3rd quartile",
+                             "max", "mean", "std.Dev", "IQR", "skewness", "kurtosis"])
+
+        if os.path.getsize(resultDirectory + "zerobugStatistical.csv") == 0:
+            zerobugwriter.writerow(["metric", "number", "number>0", "min", "1st quartile", "median", "3rd quartile",
+                             "max", "mean", "std.Dev", "IQR", "skewness", "kurtosis"])
+
+        if os.path.getsize(resultDirectory + "onebugStatistical.csv") == 0:
+            onebugwriter.writerow(["metric", "number", "number>0", "min", "1st quartile", "median", "3rd quartile",
+                             "max", "mean", "std.Dev", "IQR", "skewness", "kurtosis"])
+
+        if os.path.getsize(resultDirectory + "threebugDataStatistical.csv") == 0:
+            threebugwriter.writerow(["metric", "number", "number>0", "min", "1st quartile", "median", "3rd quartile",
+                             "max", "mean", "std.Dev", "IQR", "skewness", "kurtosis"])
 
         for metric in metricData:
 
@@ -72,6 +102,8 @@ def statistical(wd="E:\\RD\\terapromise\\",
             numberUpZero = alldf[alldf[metric] > 0].loc[:, metric].count()
             # print(numberUpZero)
             min = alldf[metric].min()
+            firstQuartile = alldf[metric].quantile(0.25)
+            thirdQuartile = alldf[metric].quantile(0.75)
             median = alldf[metric].median()
             max = alldf[metric].max()
             mean = alldf[metric].mean()
@@ -79,9 +111,43 @@ def statistical(wd="E:\\RD\\terapromise\\",
             skewness = alldf[metric].skew()
             kurtosis = alldf[metric].kurt()
 
-            writer.writerow([metric, number, numberUpZero, min, median, max, mean, std, skewness, kurtosis])
+            writer.writerow([metric, number, numberUpZero, min, firstQuartile, median, thirdQuartile, max, mean, std,
+                             thirdQuartile - firstQuartile, skewness, kurtosis])
+
+            zerobugwriter.writerow([metric, len(zerobugdf), zerobugdf[zerobugdf[metric] > 0].loc[:, metric].count(),
+                                    zerobugdf[metric].min(), zerobugdf[metric].quantile(0.25),
+                                    zerobugdf[metric].median(), zerobugdf[metric].quantile(0.75),
+                                    zerobugdf[metric].max(), zerobugdf[metric].mean(), zerobugdf[metric].std(),
+                                    zerobugdf[metric].quantile(0.75) - zerobugdf[metric].quantile(0.25),
+                                    zerobugdf[metric].skew(), zerobugdf[metric].kurt()])
+
+            onebugwriter.writerow([metric, len(onebugdf), onebugdf[onebugdf[metric] > 0].loc[:, metric].count(),
+                                   onebugdf[metric].min(), onebugdf[metric].quantile(0.25),
+                                   onebugdf[metric].median(), onebugdf[metric].quantile(0.75),
+                                   onebugdf[metric].max(), onebugdf[metric].mean(), onebugdf[metric].std(),
+                                   onebugdf[metric].quantile(0.75)- onebugdf[metric].quantile(0.25),
+                                   onebugdf[metric].skew(), onebugdf[metric].kurt()])
+
+            threebugwriter.writerow([metric, len(threebugdf), threebugdf[threebugdf[metric] > 0].loc[:, metric].count(),
+                                     threebugdf[metric].min(), threebugdf[metric].quantile(0.25),
+                                     threebugdf[metric].median(), threebugdf[metric].quantile(0.75),
+                                     threebugdf[metric].max(), threebugdf[metric].mean(), threebugdf[metric].std(),
+                                     threebugdf[metric].quantile(0.75) - threebugdf[metric].quantile(0.25),
+                                     threebugdf[metric].skew(), threebugdf[metric].kurt()])
+
+            # 画箱线图：一个度量一张图，包含四种类型
+            # pd.concat([alldf, zerobugdf, onebugdf, threebugdf], ignore_index=True, axis=1)
+            # print(pd.concat([alldf, zerobugdf, onebugdf, threebugdf]))
+
+            # .loc[:, metric].plot.box(title="Box plot of " + metric)
+            # plt.grid(linestyle="--", alpha=0.3)
+            # plt.savefig('./' + metric + '.jpg')
+            # plt.close()
 
     alldf.to_csv(resultDirectory + "allmetrics.csv")
+    zerobugdf.to_csv(resultDirectory + "zerobugmetrics.csv")
+    onebugdf.to_csv(resultDirectory + "onebugmetrics.csv")
+    threebugdf.to_csv(resultDirectory + "threebugmetrics.csv")
 
 
 if __name__ == '__main__':
